@@ -4,11 +4,16 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
+#include <pthread.h>
 
 /* Forward declaration */
 node_t *search(char *, node_t *, node_t **);
 
 node_t head = { "", "", 0, 0 };
+
+// Declare and initialize a mutex lock for the database
+pthread_mutex_t db_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 /*
  * Allocate a new node with the given key, value and children.
  */
@@ -229,7 +234,11 @@ void interpret_command(char *command, char *response, int len)
 	    return;
 	}
 
+        // Acquire lock before working with database
+        pthread_mutex_lock(&db_mutex);
 	query(name, response, len);
+        pthread_mutex_unlock(&db_mutex);
+
 	if (strlen(response) == 0) {
 	    strncpy(response, "not found", len - 1);
 	}
@@ -244,11 +253,14 @@ void interpret_command(char *command, char *response, int len)
 	    return;
 	}
 
+        // Acquire lock before working with database
+        pthread_mutex_lock(&db_mutex);
 	if (add(name, value)) {
 	    strncpy(response, "added", len - 1);
 	} else {
 	    strncpy(response, "already in database", len - 1);
 	}
+        pthread_mutex_unlock(&db_mutex);
 
 	return;
 
@@ -260,11 +272,14 @@ void interpret_command(char *command, char *response, int len)
 	    return;
 	}
 
+        // Acquire lock before working with database
+        pthread_mutex_lock(&db_mutex);
 	if (xremove(name)) {
 	    strncpy(response, "removed", len - 1);
 	} else {
 	    strncpy(response, "not in database", len - 1);
 	}
+        pthread_mutex_unlock(&db_mutex);
 
 	    return;
 

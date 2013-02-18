@@ -292,6 +292,24 @@ int main(int argc, char *argv[]) {
           continue;
         }
 
+        // If user enters EOF (CTRL+D), wait for current threads to terminate, then exit
+        if (read == -1) {
+
+            printf("Preparing to exit program. Waiting for running clients to terminate.\n");
+            pthread_mutex_lock(&running_mutex);
+            while (running) {
+                pthread_cond_wait(&running_cv, &running_mutex);
+                printf("Waiting for %d client(s) to terminate before exiting program.\n", running);
+            }
+            printf("All clients successfully terminated. Begin program cleanup.\n");
+            pthread_mutex_unlock(&running_mutex);
+
+            // Free memory allocated by getline() and split_words()
+            free(cmd);
+
+            break; // Exit while loop
+        }
+
         // Parse command from user
         //    char **split_words() returns a ref to an array of char * (words)
         //    char *cmd_words[] = split_words(cmd);
@@ -417,7 +435,7 @@ int main(int argc, char *argv[]) {
         // Free memory allocated by getline() and split_words()
         free(cmd);
         free_words(parsed_cmd);
-    }
+    } // End while(keepGoing)
 
     // Clean-up time
 
@@ -436,14 +454,14 @@ int main(int argc, char *argv[]) {
     void *res;
     pthread_join(arnold, &res); // Wait until cancellation is confirmed, thread terminated
     if (res == PTHREAD_CANCELED) {
-        printf("Terminator thread canceled successfully... I'll be back.\n");
+        printf("Terminator thread canceled successfully. (I'll be back.)\n");
     }
 
     //if ((c = client_create(started++)) )  {
 	//client_run(c);
 	//client_destroy(c);
     //}
-    fprintf(stderr, "Program terminating.\n");
+    fprintf(stderr, "Program exiting.\n");
     /* Clean up the window data */
     window_cleanup();
 

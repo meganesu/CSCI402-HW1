@@ -9,6 +9,13 @@
 node_t *search(char *, node_t *, node_t **);
 
 node_t head = { "", "", 0, 0 };
+
+// Declare and initialize a mutex lock for the database
+pthread_mutex_t request_mutex = PTHREAD_MUTEX_INITIALIZER;
+int num_readers = 0;
+pthread_mutex_t num_readers_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t db_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 /*
  * Allocate a new node with the given key, value and children.
  */
@@ -229,10 +236,32 @@ void interpret_command(char *command, char *response, int len)
 	    return;
 	}
 
+        // READER CASE
+
+        /* readers:
+             acquire request lock. if you have this, that means you're the only one whose request
+             is being processed. acquire lock to num_readers. increment. if you're a reader, this
+             means you want to check to see if num_readers in db is 1. if it is, this means you're
+             the first reader, so acquire the lock to the database. then release lock on num_readers.
+             release request lock. do the query. lock num_readers. decrement. check if zero.
+             if 0, you're the last reader in there, so release the lock on the db.
+        */
+        pthread_mutex_lock(&request_mutex);
+        pthread_mutex_lock(&num_readers_mutex);
+        num_readers++;
+        if (num_readers == 1) pthread_mutex_lock(&db_mutex);
+        pthread_mutex_unlock(&num_readers_mutex);
+        pthread_mutex_unlock(&request_mutex);
+
 	query(name, response, len);
 	if (strlen(response) == 0) {
 	    strncpy(response, "not found", len - 1);
 	}
+
+        pthread_mutex_lock(&num_readers_mutex);
+        num_readers--;
+        if (num_readers == 0) pthread_mutex_unlock(&db_mutex);
+        pthread_mutex_unlock(&num_readers_mutex);
 
 	return;
 
@@ -244,11 +273,26 @@ void interpret_command(char *command, char *response, int len)
 	    return;
 	}
 
+        // WRITER CASE
+
+        /* writer:
+             acquire request lock.
+             acquire db lock.
+             release request lock.
+             write/delete stuff.
+             release db lock.
+        */
+        pthread_mutex_lock(&request_mutex);
+        pthread_mutex_lock(&db_mutex);
+        pthread_mutex_unlock(&request_mutex);
+
 	if (add(name, value)) {
 	    strncpy(response, "added", len - 1);
 	} else {
 	    strncpy(response, "already in database", len - 1);
 	}
+
+        pthread_mutex_unlock(&db_mutex);
 
 	return;
 
@@ -260,11 +304,26 @@ void interpret_command(char *command, char *response, int len)
 	    return;
 	}
 
+        // WRITER CASE
+
+        /* writer:
+             acquire request lock.
+             acquire db lock.
+             release request lock.
+             write/delete stuff.
+             release db lock.
+        */
+        pthread_mutex_lock(&request_mutex);
+        pthread_mutex_lock(&db_mutex);
+        pthread_mutex_unlock(&request_mutex);
+
 	if (xremove(name)) {
 	    strncpy(response, "removed", len - 1);
 	} else {
 	    strncpy(response, "not in database", len - 1);
 	}
+
+        pthread_mutex_unlock(&db_mutex);
 
 	    return;
 
