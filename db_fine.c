@@ -101,7 +101,7 @@ void node_destroy(node_t * node) {
 void query(char *name, char *result, int len) {
     node_t *target;
 
-    target = search(name, &head, NULL, 0);
+    target = search(name, &head, NULL);
 
     if (!target) {
 	strncpy(result, "not found", len - 1);
@@ -119,7 +119,7 @@ int add(char *name, char *value) {
 	node_t *target;	    /* The existing node with key name if any */
 	node_t *newnode;    /* The new node to add */
 
-	if ((target = search(name, &head, &parent, 1))) {
+	if ((target = search(name, &head, &parent))) {
 	    /* There is already a node with this key in the tree */
 	    return 0;
 	}
@@ -159,7 +159,7 @@ int xremove(char *name) {
 			       can change that nodes children (see below). */
 
 	/* first, find the node to be removed */
-	if (!(dnode = search(name, &head, &parent, 1))) {
+	if (!(dnode = search(name, &head, &parent))) {
 	    /* it's not there */
 	    return 0;
 	}
@@ -224,9 +224,7 @@ int xremove(char *name) {
  *
  * Assumptions:
  * parent is not null and it does not contain name */
-// exclusive is a boolean value specifying whether the search needs to use
-//   locking implementation for reading (non-exclusive) or writing (exclusive)
-node_t *search(char *name, node_t * parent, node_t ** parentpp, int exclusive) {
+node_t *search(char *name, node_t * parent, node_t ** parentpp) {
 
     node_t *next;
     node_t *result;
@@ -244,7 +242,7 @@ node_t *search(char *name, node_t * parent, node_t ** parentpp, int exclusive) {
 	} else {
 	    /* "We have to go deeper!" This recurses and returns from here
 	     * after the recursion has returned result and set parentpp */
-	    result = search(name, next, parentpp, exclusive);
+	    result = search(name, next, parentpp);
 	    return result;
 	}
     }
