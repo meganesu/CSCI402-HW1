@@ -295,11 +295,11 @@ int main(int argc, char *argv[]) {
         // If user enters EOF (CTRL+D), wait for current threads to terminate, then exit
         if (read == -1) {
 
-            printf("Preparing to exit program. Waiting for running clients to terminate.\n");
+            printf("Preparing to exit program.\n");
             pthread_mutex_lock(&running_mutex);
             while (running) {
-                pthread_cond_wait(&running_cv, &running_mutex);
                 printf("Waiting for %d client(s) to terminate before exiting program.\n", running);
+                pthread_cond_wait(&running_cv, &running_mutex);
             }
             printf("All clients successfully terminated. Begin program cleanup.\n");
             pthread_mutex_unlock(&running_mutex);

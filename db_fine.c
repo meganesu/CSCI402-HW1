@@ -8,7 +8,44 @@
 /* Forward declaration */
 node_t *search(char *, node_t *, node_t **);
 
-node_t head = { "", "", 0, 0 };
+node_t head = { "", "", 0, 0, PTHREAD_MUTEX_INITIALIZER, 0, PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER };
+
+// Method to read-lock a node
+void read_lock(node_t *node)
+{
+    pthread_mutex_lock(&node->request_mutex);
+    // If you get here, you are the only request being processed at this time
+    pthread_mutex_lock(&node->num_readers_mutex);
+    node->num_readers++;
+    if (node->num_readers == 1) // If you are the first reader in the node
+        pthread_mutex_lock(&node->node_mutex); // Lock access to the node
+    pthread_mutex_unlock(&node->num_readers_mutex);
+    pthread_mutex_unlock(&node->request_mutex);
+}
+
+// Method to read-unlock a node
+void read_unlock(node_t *node)
+{
+    pthread_mutex_lock(&node->num_readers_mutex);
+    num_readers--;
+    if (node->num_readers == 0) // If you were the last reader in the node
+        pthread_mutex_unlock(&node->node_mutex);
+    pthread_mutex_unlock(&node->num_readers_mutex);
+}
+
+// Method to write-lock a node
+void write_lock(node_t *node)
+{
+    pthread_mutex_lock(&node->request_mutex);
+    pthread_mutex_lock(&node->node_mutex);
+    pthread_mutex_unlock(&node->request_mutex);
+}
+
+// Method to write-unlock a node
+void write_unlock(node_t *node)
+{
+    pthread_mutex_unlock(&node->node_mutex
+}
 /*
  * Allocate a new node with the given key, value and children.
  */
@@ -34,6 +71,12 @@ node_t *node_create(char *arg_name, char *arg_value, node_t * arg_left,
     strcpy(new_node->value, arg_value);
     new_node->lchild = arg_left;
     new_node->rchild = arg_right;
+
+    // Initialize mutexes/variables for read-write lock
+    pthread_mutex_init(&new_node->request_mutex, NULL);
+    new_node->num_readers = 0;
+    pthread_mutex_init(&new_node->num_readers_mutex, NULL);
+    pthread_mutex_init(&new_node->node_mutex, NULL);
     
     return new_node;
 }
@@ -44,6 +87,12 @@ void node_destroy(node_t * node) {
      * case the node_destroy is called again. */
     if (node->name) {free(node->name); node->name = NULL; }
     if (node->value) { free(node->value); node->value = NULL; }
+
+    // Destroy mutexes created for read-write lock
+    pthread_mutex_destroy(&node->request_mutex);
+    pthread_mutex_destroy(&node->num_readers_mutex);
+    pthread_mutex_destroy(&node->node_mutex);
+
     free(node);
 }
 
@@ -52,7 +101,7 @@ void node_destroy(node_t * node) {
 void query(char *name, char *result, int len) {
     node_t *target;
 
-    target = search(name, &head, NULL);
+    target = search(name, &head, NULL, 0);
 
     if (!target) {
 	strncpy(result, "not found", len - 1);
@@ -70,7 +119,7 @@ int add(char *name, char *value) {
 	node_t *target;	    /* The existing node with key name if any */
 	node_t *newnode;    /* The new node to add */
 
-	if ((target = search(name, &head, &parent))) {
+	if ((target = search(name, &head, &parent, 1))) {
 	    /* There is already a node with this key in the tree */
 	    return 0;
 	}
@@ -110,7 +159,7 @@ int xremove(char *name) {
 			       can change that nodes children (see below). */
 
 	/* first, find the node to be removed */
-	if (!(dnode = search(name, &head, &parent))) {
+	if (!(dnode = search(name, &head, &parent, 1))) {
 	    /* it's not there */
 	    return 0;
 	}
@@ -175,7 +224,9 @@ int xremove(char *name) {
  *
  * Assumptions:
  * parent is not null and it does not contain name */
-node_t *search(char *name, node_t * parent, node_t ** parentpp) {
+// exclusive is a boolean value specifying whether the search needs to use
+//   locking implementation for reading (non-exclusive) or writing (exclusive)
+node_t *search(char *name, node_t * parent, node_t ** parentpp, int exclusive) {
 
     node_t *next;
     node_t *result;
@@ -193,7 +244,7 @@ node_t *search(char *name, node_t * parent, node_t ** parentpp) {
 	} else {
 	    /* "We have to go deeper!" This recurses and returns from here
 	     * after the recursion has returned result and set parentpp */
-	    result = search(name, next, parentpp);
+	    result = search(name, next, parentpp, exclusive);
 	    return result;
 	}
     }
