@@ -184,6 +184,9 @@ void *client_run(void *arg)
 void *terminator()
 {
         pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+        // Make cancel type asynchronous. This means terminator thread can be cancelled
+        //   at any time (not just at the next cancellation point).
+        pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
         while (1) {
             // Acquire the lock for the chopping block
             pthread_mutex_lock(&chopping_block_mutex);
