@@ -27,7 +27,7 @@ void read_lock(node_t *node)
 void read_unlock(node_t *node)
 {
     pthread_mutex_lock(&node->num_readers_mutex);
-    num_readers--;
+    node->num_readers--;
     if (node->num_readers == 0) // If you were the last reader in the node
         pthread_mutex_unlock(&node->node_mutex);
     pthread_mutex_unlock(&node->num_readers_mutex);
@@ -44,7 +44,7 @@ void write_lock(node_t *node)
 // Method to write-unlock a node
 void write_unlock(node_t *node)
 {
-    pthread_mutex_unlock(&node->node_mutex
+    pthread_mutex_unlock(&node->node_mutex);
 }
 /*
  * Allocate a new node with the given key, value and children.
@@ -101,13 +101,19 @@ void node_destroy(node_t * node) {
 void query(char *name, char *result, int len) {
     node_t *target;
 
+    // Acquire read-lock for head node before executing search().
+    read_lock(&head);
+
     target = search(name, &head, NULL);
 
-    if (!target) {
+    // When you get here, target is either target node (read-locked) or NULL
+
+    if (!target) { // Target was not found
 	strncpy(result, "not found", len - 1);
 	return;
-    } else {
+    } else { // Target was found, node is read-locked
 	strncpy(result, target->value, len - 1);
+        read_unlock(target);
 	return;
     }
 }
@@ -119,10 +125,18 @@ int add(char *name, char *value) {
 	node_t *target;	    /* The existing node with key name if any */
 	node_t *newnode;    /* The new node to add */
 
+        // Acquire write-lock for head before search
+        write_lock(&head);
+
 	if ((target = search(name, &head, &parent))) {
 	    /* There is already a node with this key in the tree */
+            write_unlock(target);
+            write_unlock(parent);
 	    return 0;
 	}
+
+        // If you get here, target didn't exist
+        //   Only parent node is write-locked
 
 	/* No idea how this could happen, but... */
 	if (!parent) return 0;
@@ -132,6 +146,8 @@ int add(char *name, char *value) {
 
 	if (strcmp(name, parent->name) < 0) parent->lchild = newnode;
 	else parent->rchild = newnode;
+
+        write_unlock(parent);
 
 	return 1;
 }
@@ -158,9 +174,13 @@ int xremove(char *name) {
 	node_t **pnext;	    /* A pointer in the tree that points to next so we
 			       can change that nodes children (see below). */
 
+        // Acquire write-lock for head before search
+        write_lock(&head);
+
 	/* first, find the node to be removed */
 	if (!(dnode = search(name, &head, &parent))) {
 	    /* it's not there */
+            write_unlock(parent);
 	    return 0;
 	}
 
@@ -175,6 +195,7 @@ int xremove(char *name) {
 
 	    /* done with dnode */
 	    node_destroy(dnode);
+            write_unlock(parent);
 	} else if (dnode->lchild == 0) {
 	    /* ditto if the node had no left child */
 	    if (strcmp(dnode->name, parent->name) < 0)
@@ -184,6 +205,7 @@ int xremove(char *name) {
 
 	    /* done with dnode */
 	    node_destroy(dnode);
+            write_unlock(parent);
 	} else {
 	    /* So much for the easy cases ...
 	     * We know that all nodes in a node's right subtree have
@@ -196,13 +218,24 @@ int xremove(char *name) {
 	     * all nodes in its left subtree. Thus the modified tree is well
 	     * formed. */
 
+            // If you get here, dnode has two children
+            //   Don't need to change dnode's parent node in this case, so let it go
+            write_unlock(parent);
+
 	    /* pnext is the address of the pointer which points to next (either
 	     * parent's lchild or rchild) */
+            write_lock(dnode->rchild); // Know rchild exists because dnode has two children here
 	    pnext = &dnode->rchild;
 	    next = *pnext;
+
 	    while (next->lchild != 0) {
+                    // If you get here, you know next->lchild exists (is a node, not NULL)
+
 		    /* work our way down the lchild chain, finding the smallest
 		     * node in the subtree. */
+                    write_lock(next->lchild);
+                    write_unlock(next); // As long as dnode is locked, no one should be able to
+                                        //   access nodes between dnode and next->lchild
 		    pnext = &next->lchild;
 		    next = *pnext;
 	    }
@@ -211,6 +244,7 @@ int xremove(char *name) {
 	    *pnext = next->rchild;
 
 	    node_destroy(next);
+            write_unlock(dnode);
     }
     return 1;
 }
@@ -232,16 +266,33 @@ node_t *search(char *name, node_t * parent, node_t ** parentpp) {
     if (strcmp(name, parent->name) < 0) next = parent->lchild;
     else next = parent->rchild;
 
-    if (next == NULL) {
-	result = NULL;
-    } else {
-	if (strcmp(name, next->name) == 0) {
+    if (next == NULL) { // You're reached the bottom of the tree
+	result = NULL; // Target was not in tree    
+        if (parentpp == NULL) read_unlock(parent); // If reading, let the parent go here
+    }
+    else {
+        // If you get here, you know the next node was not NULL (i.e. it exists)
+        //   Acquire the appropriate lock (based on read/write command type)
+        if (parentpp == NULL) { // If reading
+            read_lock(next);
+            read_unlock(parent);
+        }
+        else { // If writing
+            write_lock(next);
+        }
+
+	if (strcmp(name, next->name) == 0) { // If next is the target node
 	    /* Note that this falls through to the if (parentpp .. ) statement
 	     * below. */
-	    result = next;
-	} else {
+	    result = next; // You found it!
+	}
+        else { // Have to keep searching
 	    /* "We have to go deeper!" This recurses and returns from here
 	     * after the recursion has returned result and set parentpp */
+            if (parentpp != 0) { // If writing
+                write_unlock(parent); // If you're recursing, you know current parent isn't
+                                      //   the parent of the target node, so you can let it go
+            }
 	    result = search(name, next, parentpp);
 	    return result;
 	}
@@ -250,7 +301,10 @@ node_t *search(char *name, node_t * parent, node_t ** parentpp) {
     /* record a parent if we are looking for one */
     if (parentpp != 0) *parentpp = parent;
 
-    return (result);
+    return (result); // If reading, only target node (if found) will be locked upon return
+                     // If writing, parent will be locked. If target node exists, it will also
+                     //   be locked.
+                     // Need to handle unlocking appropriate nodes in methods calling search().
 }
 
 /*

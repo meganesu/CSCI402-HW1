@@ -392,6 +392,13 @@ int main(int argc, char *argv[]) {
             break;
 
         case 'w': { // Stop processing server commands until currently running clients have terminated
+
+            // Implicitly call 'g' to make sure threads are running (not stuck in wait loop)
+            pthread_mutex_lock(&paused_mutex);
+            paused = 0;
+            pthread_cond_broadcast(&paused_cv);
+            pthread_mutex_unlock(&paused_mutex);
+
             /*
                 acquire lock on num_threads_running
                 while num_threads_running is more than zero,
@@ -403,11 +410,13 @@ int main(int argc, char *argv[]) {
                     update number of threads running (decrement by one)
                     signal anyone waiting on running_threads_cv
             */
+
             pthread_mutex_lock(&running_mutex);
             while (running) {
                 pthread_cond_wait(&running_cv, &running_mutex);
             }
             pthread_mutex_unlock(&running_mutex);
+            printf("All threads have completed! Server will now resume processing commands.\n");
             // Clear the stdin stream of any commands entered while system was paused
             //   (once stdin is empty, user nees to enter EOF, i.e. CTRL+D, manually
             //    to stop flushing input and resume listening to commands)
