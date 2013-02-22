@@ -1,0 +1,7 @@
+TO USE THIS TEST:
+enter following command (from the mt_db directory)
+'./server_[coarse|rw|fine] < tests/read_heavy/read_heavy_server'
+
+create_listTree.py: This is a Python script which writes the read files and readTree file.
+read1 - read8: These are a series of database commands which query the database.
+read_heavy_server: The server commands to be piped in to the program.
