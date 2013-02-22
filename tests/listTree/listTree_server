@@ -1,0 +1,14 @@
+s
+E tests/listTree/listTree tests/listTree/listTree_output
+w
+s
+E tests/listTree/delete1 tests/listTree/listTree_output
+E tests/listTree/delete2 tests/listTree/listTree_output
+E tests/listTree/delete3 tests/listTree/listTree_output
+E tests/listTree/delete4 tests/listTree/listTree_output
+E tests/listTree/delete5 tests/listTree/listTree_output
+E tests/listTree/delete6 tests/listTree/listTree_output
+E tests/listTree/delete7 tests/listTree/listTree_output
+E tests/listTree/delete8 tests/listTree/listTree_output
+g
+

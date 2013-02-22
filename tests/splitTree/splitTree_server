@@ -1,0 +1,12 @@
+s
+E tests/splitTree/splitTree tests/splitTree/output
+w
+s
+E tests/splitTree/read1 tests/splitTree/output
+E tests/splitTree/read2 tests/splitTree/output
+E tests/splitTree/write1 tests/splitTree/output
+E tests/splitTree/write2 tests/splitTree/output
+E tests/splitTree/write3 tests/splitTree/output
+E tests/splitTree/write4 tests/splitTree/output
+g
+

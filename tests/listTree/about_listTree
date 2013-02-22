@@ -1,0 +1,8 @@
+TO USE THIS TEST:
+enter command (from the mt_db directory)
+'./server_[coarse|rw|fine] < tests/listTree/listTree_server'
+
+create_listTree.py: This is a Python script which writes the delete files and listTree file.
+delete1 - delete8: These are a series of database commands which delete nodes from the database starting at the bottom of the tree and working up.
+listTree: The list of database commands to create all the initial nodes for the tree. The nodes are added in sequential order, so the tree should essentially be a linked list of nodes.
+listTree_server: The server commands to be piped in to the program.

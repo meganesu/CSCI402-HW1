@@ -1,0 +1,14 @@
+s
+E tests/read_heavy/readTree tests/read_heavy/output
+w
+s
+E tests/read_heavy/read1 tests/read_heavy/output
+E tests/read_heavy/read2 tests/read_heavy/output
+E tests/read_heavy/read3 tests/read_heavy/output
+E tests/read_heavy/read4 tests/read_heavy/output
+E tests/read_heavy/read5 tests/read_heavy/output
+E tests/read_heavy/read6 tests/read_heavy/output
+E tests/read_heavy/read7 tests/read_heavy/output
+E tests/read_heavy/read8 tests/read_heavy/output
+g
+

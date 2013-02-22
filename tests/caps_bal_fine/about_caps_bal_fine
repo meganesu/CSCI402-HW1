@@ -1,0 +1,6 @@
+This test should work best on the fine-grained database. One half of the tree (all the nodes on one side of the first node, which is kuwait, in this case) is being written on while the other half of the tree is being queried. Since the reads and writes are happening on two separate halves of the tree (so the nodes being written to and read from are separated), they should be able to happen simultaneously in the fine-grained implementation. In both the coarse-grained and the coarse read-write implementations, threads will have to wait until the entire tree is unlocked to continue.
+
+caps_balanced: builds a (roughly) balanced binary tree using the key/value pairs from caps
+caps_bal_fine_read: reads nodes on one half of the tree
+caps_bal_fine_write: writes nodes from the other half of the tree (deletes them and adds them back)
+caps_bal_fine_server: the server commands that start up the threads appropriately
