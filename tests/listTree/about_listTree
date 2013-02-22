@@ -1,5 +1,5 @@
 TO USE THIS TEST:
-enter command (from the mt_db directory)
+enter following command (from the mt_db directory)
 './server_[coarse|rw|fine] < tests/listTree/listTree_server'
 
 create_listTree.py: This is a Python script which writes the delete files and listTree file.

@@ -272,7 +272,7 @@ int main(int argc, char *argv[]) {
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
 
     // Set up terminator thread
-    pthread_t arnold;
+    pthread_t arnold; // (Get it?)
     pthread_create(&arnold, &attr, terminator, NULL);
 
     //char *cmd = NULL; // Stores the command entered to the window by user
@@ -280,6 +280,10 @@ int main(int argc, char *argv[]) {
     //ssize_t read;
 
     //char **parsed_cmd;
+
+    // Set up variables to record running time
+    struct timeval start_time, end_time; // timeval has sec and usec (microsecond) components
+    gettimeofday(&start_time, NULL);
 
     int keepGoing = 1; // Set to 0 when you want to quit the program
     while(keepGoing) {
@@ -359,9 +363,6 @@ int main(int argc, char *argv[]) {
 
              if ((c = client_create_no_window(parsed_cmd[1], parsed_cmd[2]))) {
                  pthread_create(&c->thread, &attr, client_run, (void *) c);
-             }
-             else {
-                 printf("INVALID INPUT FILE. TRY AGAIN.\n");
              }
         }
         break;
@@ -473,7 +474,15 @@ int main(int argc, char *argv[]) {
 	//client_run(c);
 	//client_destroy(c);
     //}
+
     fprintf(stderr, "Program exiting.\n");
+
+    // Calculate running time
+    gettimeofday(&end_time, NULL);
+    int run_time = (end_time.tv_sec - start_time.tv_sec) * 1000000
+                   + (end_time.tv_usec - start_time.tv_usec);
+    printf("Running time (in microseconds): %d\n", run_time);
+
     /* Clean up the window data */
     window_cleanup();
 
